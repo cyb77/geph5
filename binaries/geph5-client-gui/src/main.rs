@@ -11,23 +11,33 @@ mod store_cell;
 mod tabs;
 mod timeseries;
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use daemon::{stop_daemon, DAEMON, TOTAL_BYTES_TIMESERIES};
 use egui::{FontData, FontDefinitions, FontFamily, IconData, Visuals};
 use l10n::l10n;
 use logs::LogLayer;
 use native_dialog::MessageType;
-use once_cell::sync::Lazy;
 use prefs::{pref_read, pref_write};
 use settings::USERNAME;
 use single_instance::SingleInstance;
 use tabs::{dashboard::Dashboard, login::Login, logs::Logs, settings::render_settings};
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt, EnvFilter};
+use tray_icon::{Icon, TrayIconBuilder};
 
 // 0123456789
 
 fn main() {
+    const IMAGE_DATA: &[u8] = include_bytes!("../icon.png");
+    let img = image::load_from_memory(IMAGE_DATA).unwrap();
+    let tray_icon = TrayIconBuilder::new()
+        .with_tooltip("system-tray - tray icon library!")
+        .with_icon(
+            Icon::from_rgba(img.as_rgba8().unwrap().to_vec(), img.width(), img.height()).unwrap(),
+        )
+        .build()
+        .unwrap();
+    tray_icon.set_visible(true).unwrap();
     let instance = SingleInstance::new("geph5-client-gui").unwrap();
     if !instance.is_single() {
         native_dialog::MessageDialog::new()

@@ -44,7 +44,6 @@ pub fn render_settings(_ctx: &egui::Context, ui: &mut egui::Ui) -> anyhow::Resul
         })
     });
 
-    // #[cfg(not(target_os = "macos"))]
     PROXY_AUTOCONF.modify(|proxy_autoconf| {
         ui.columns(2, |columns| {
             columns[0].label(l10n("proxy_autoconf"));
