@@ -2335,6 +2335,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui-material-icons"
+version = "0.1.0"
+source = "git+https://github.com/lucasmerlin/egui-material-icons#f7a196f8189cdcf04d713d71972863f8a406c9d9"
+dependencies = [
+ "egui",
+ "material-icons-proc-macro",
+]
+
+[[package]]
 name = "egui-wgpu"
 version = "0.28.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3088,6 +3097,7 @@ dependencies = [
  "csv",
  "eframe",
  "egui",
+ "egui-material-icons",
  "egui_extras",
  "egui_plot",
  "elevated-command",
@@ -3118,6 +3128,7 @@ dependencies = [
  "tap",
  "tracing",
  "tracing-subscriber",
+ "widgets",
  "winapi",
  "winreg",
  "winresource",
@@ -4223,6 +4234,11 @@ name = "matchit"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
+
+[[package]]
+name = "material-icons-proc-macro"
+version = "0.1.0"
+source = "git+https://github.com/lucasmerlin/egui-material-icons#f7a196f8189cdcf04d713d71972863f8a406c9d9"
 
 [[package]]
 name = "md-5"
@@ -7940,6 +7956,16 @@ name = "widestring"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7219d36b6eac893fa81e84ebe06485e7dcbb616177469b142df14f1f4deb1311"
+
+[[package]]
+name = "widgets"
+version = "0.1.0"
+source = "git+https://github.com/mel-project/egui-widgets#8d39cccfa4548679c2146b3baee1a1ea8c00dbaf"
+dependencies = [
+ "eframe",
+ "egui",
+ "egui-material-icons",
+]
 
 [[package]]
 name = "winapi"

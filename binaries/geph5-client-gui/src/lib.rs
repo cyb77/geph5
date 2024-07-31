@@ -4,11 +4,15 @@ use std::time::Duration;
 
 use daemon::{DAEMON_HANDLE, TOTAL_BYTES_TIMESERIES};
 use egui::{FontData, FontDefinitions, FontFamily, Visuals};
+use egui_material_icons::{
+    self,
+    icons::{ICON_DASHBOARD, ICON_DESCRIPTION, ICON_SETTINGS},
+};
 use l10n::l10n;
-
 use refresh_cell::RefreshCell;
 use settings::USERNAME;
 use tabs::{dashboard::Dashboard, login::Login, logs::Logs, settings::render_settings};
+
 pub mod daemon;
 pub mod l10n;
 pub mod logs;
@@ -40,6 +44,7 @@ impl App {
     /// Constructs the app.
     pub fn new(ctx: &egui::Context) -> Self {
         egui_extras::install_image_loaders(ctx);
+
         // set up fonts. currently this uses SC for CJK, but this can be autodetected instead.
         let mut fonts = FontDefinitions::default();
         fonts.font_data.insert(
@@ -65,6 +70,8 @@ impl App {
             style.visuals = Visuals::light();
             // style.visuals.override_text_color = Some(egui::Color32::BLACK);
         });
+
+        egui_material_icons::initialize(ctx);
 
         Self {
             total_bytes: RefreshCell::new(),
@@ -106,17 +113,27 @@ impl App {
             return;
         }
 
-        egui::TopBottomPanel::top("top").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.selectable_value(
-                    &mut self.selected_tab,
+        widgets::TabBar::new(
+            "tab_bar",
+            vec![
+                widgets::TabBarItem::new(
                     TabName::Dashboard,
-                    l10n("dashboard"),
-                );
-                ui.selectable_value(&mut self.selected_tab, TabName::Logs, l10n("logs"));
-                ui.selectable_value(&mut self.selected_tab, TabName::Settings, l10n("settings"));
-            });
-        });
+                    l10n("dashboard").to_owned(),
+                    ICON_DASHBOARD.to_owned(),
+                ),
+                widgets::TabBarItem::new(
+                    TabName::Logs,
+                    l10n("logs").to_owned(),
+                    ICON_DESCRIPTION.to_owned(),
+                ),
+                widgets::TabBarItem::new(
+                    TabName::Settings,
+                    l10n("settings").to_owned(),
+                    ICON_SETTINGS.to_owned(),
+                ),
+            ],
+        )
+        .show(ctx, &mut self.selected_tab);
 
         let result = egui::CentralPanel::default().show(ctx, |ui| match self.selected_tab {
             TabName::Dashboard => self.dashboard.render(ui),
