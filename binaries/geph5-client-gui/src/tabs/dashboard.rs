@@ -90,7 +90,13 @@ impl Dashboard {
         ui.add_space(10.);
         ui.vertical_centered(|ui| {
             if conn_info.is_none() {
-                if ui.button(l10n("connect")).clicked() {
+                if ui
+                    .add(widgets::Button::primary(
+                        l10n("connect").to_owned(),
+                        widgets::ButtonSize::Large,
+                    ))
+                    .clicked()
+                {
                     tracing::warn!("connect clicked");
                     DAEMON_HANDLE.start(get_config()?)?;
                     if PROXY_AUTOCONF.get() {

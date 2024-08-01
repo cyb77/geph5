@@ -19,11 +19,20 @@ pub static LOCATION_LIST: Lazy<Mutex<RefreshCell<ExitList>>> =
     Lazy::new(|| Mutex::new(RefreshCell::new()));
 
 pub fn render_settings(_ctx: &egui::Context, ui: &mut egui::Ui) -> anyhow::Result<()> {
-    if ui.button(l10n("logout")).clicked() {
-        DAEMON_HANDLE.stop()?;
-        USERNAME.set("".into());
-        PASSWORD.set("".into());
-    }
+    ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+        if ui
+            .add(widgets::Button::warning(
+                l10n("logout").to_owned(),
+                widgets::ButtonSize::Large,
+            ))
+            .clicked()
+        {
+            DAEMON_HANDLE.stop()?;
+            USERNAME.set("".into());
+            PASSWORD.set("".into());
+        }
+        anyhow::Ok(())
+    });
 
     // Preferences
     ui.separator();
