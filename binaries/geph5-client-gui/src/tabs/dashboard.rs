@@ -103,7 +103,16 @@ impl Dashboard {
                         set_http_proxy(get_config()?.http_proxy_listen.unwrap())?;
                     }
                 }
-            } else if ui.button(l10n("disconnect")).clicked() {
+            } else if ui
+                .add(
+                    widgets::Button::warning(
+                        l10n("disconnect").to_owned(),
+                        widgets::ButtonSize::Large,
+                    )
+                    .invert(true),
+                )
+                .clicked()
+            {
                 tracing::warn!("disconnect clicked");
                 DAEMON_HANDLE.stop()?;
                 unset_http_proxy()?;

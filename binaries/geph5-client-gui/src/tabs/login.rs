@@ -44,7 +44,16 @@ impl Login {
                         let err = format!("{:?}", err);
                         ui.vertical_centered(|ui| {
                             ui.colored_label(egui::Color32::DARK_RED, err);
-                            if ui.button(l10n("ok")).clicked() {
+                            if ui
+                                .add(
+                                    widgets::Button::black(
+                                        l10n("ok").to_owned(),
+                                        widgets::ButtonSize::Large,
+                                    )
+                                    .invert(true),
+                                )
+                                .clicked()
+                            {
                                 self.check_login = None;
                             }
                         });
@@ -78,13 +87,23 @@ impl Login {
                 })
                 .inner?;
 
-                if ui.button(l10n("login")).clicked() || ui.input(|i| i.key_pressed(Key::Enter)) {
-                    let username = self.username.clone();
-                    let password = self.password.clone();
-                    self.check_login = Some(Promise::spawn_thread("check_login", move || {
-                        smolscale::block_on(check_login(username, password))
-                    }));
-                }
+                ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
+                    if ui
+                        .add(widgets::Button::primary(
+                            l10n("login").to_owned(),
+                            widgets::ButtonSize::Large,
+                        ))
+                        .clicked()
+                        || ui.input(|i| i.key_pressed(Key::Enter))
+                    {
+                        let username = self.username.clone();
+                        let password = self.password.clone();
+                        self.check_login = Some(Promise::spawn_thread("check_login", move || {
+                            smolscale::block_on(check_login(username, password))
+                        }));
+                    }
+                });
+
                 anyhow::Ok(())
             })
             .inner?;
