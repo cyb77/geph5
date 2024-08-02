@@ -62,8 +62,8 @@ fn main() {
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([320.0, 320.0])
-            .with_min_inner_size([320.0, 320.0])
+            .with_inner_size([360.0, 360.0])
+            .with_min_inner_size([360.0, 360.0])
             .with_icon(IconData {
                 rgba: icon_rgba,
                 width: icon_width,

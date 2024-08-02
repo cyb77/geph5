@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use egui::mutex::Mutex;
 use geph5_broker_protocol::{BrokerClient, ExitList};
+use isocountry::CountryCode;
 use itertools::Itertools as _;
 use once_cell::sync::Lazy;
 
@@ -14,6 +15,7 @@ use crate::{
         VPN_MODE,
     },
 };
+use egui_material_icons::icons::*;
 
 pub static LOCATION_LIST: Lazy<Mutex<RefreshCell<ExitList>>> =
     Lazy::new(|| Mutex::new(RefreshCell::new()));
@@ -37,148 +39,219 @@ pub fn render_settings(_ctx: &egui::Context, ui: &mut egui::Ui) -> anyhow::Resul
     // Preferences
     ui.separator();
 
-    ui.columns(2, |columns| {
-        columns[0].label(l10n("language"));
-        render_language_settings(&mut columns[1])
-    })?;
+    ui.add(widgets::SettingsLine::new(
+        ICON_LANGUAGE.to_string(),
+        l10n("language").to_string(),
+        Box::new(|ui: &mut egui::Ui| render_language_settings(ui)),
+    ));
 
     // Network settings
     ui.separator();
 
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     VPN_MODE.modify(|vpn_mode| {
-        ui.columns(2, |columns| {
-            columns[0].label(l10n("vpn_mode"));
-            columns[1].add(egui::Checkbox::new(vpn_mode, ""));
-        })
+        ui.add(widgets::SettingsLine::new(
+            ICON_VPN_KEY.to_string(),
+            l10n("vpn_mode").to_string(),
+            Box::new(|ui: &mut egui::Ui| ui.add(widgets::Switch::new(vpn_mode))),
+        ));
     });
 
     // #[cfg(not(target_os = "macos"))]
     PROXY_AUTOCONF.modify(|proxy_autoconf| {
-        ui.columns(2, |columns| {
-            columns[0].label(l10n("proxy_autoconf"));
-            columns[1].add(egui::Checkbox::new(proxy_autoconf, ""));
-        })
+        ui.add(widgets::SettingsLine::new(
+            ICON_SETTINGS_ETHERNET.to_string(),
+            l10n("proxy_autoconf").to_string(),
+            Box::new(|ui: &mut egui::Ui| ui.add(widgets::Switch::new(proxy_autoconf))),
+        ));
     });
 
-    ui.columns(2, |columns| {
-        columns[0].label(l10n("exit_location"));
-        let mut location_list = LOCATION_LIST.lock();
-        let locations = location_list.get_or_refresh(Duration::from_secs(10), || {
-            smolscale::block_on(async {
-                let rpc_transport = get_config().unwrap().broker.unwrap().rpc_transport();
-                let client = BrokerClient::from(rpc_transport);
-                loop {
-                    let fallible = async {
-                        let exits = client.get_exits().await?.map_err(|e| anyhow::anyhow!(e))?;
-                        let mut inner = exits.inner;
-                        inner
-                            .all_exits
-                            .sort_unstable_by_key(|s| (s.1.country, s.1.city.clone()));
-                        anyhow::Ok(inner)
-                    };
-                    match fallible.await {
-                        Ok(v) => return v,
-                        Err(err) => tracing::warn!("Failed to get country list: {}", err),
-                    }
-                }
-            })
-        });
-
-        columns[1].vertical(|ui| {
-            egui::ComboBox::from_id_source("country")
-                .selected_text(
-                    SELECTED_COUNTRY
-                        .get()
-                        .map(l10n_country)
-                        .unwrap_or_else(|| l10n("auto")),
-                )
-                .show_ui(ui, |ui| {
-                    let former = SELECTED_COUNTRY.get();
-                    SELECTED_COUNTRY.modify(|selected| {
-                        if let Some(locations) = locations {
-                            ui.selectable_value(selected, None, l10n("auto"));
-
-                            for country in locations.all_exits.iter().map(|s| s.1.country).unique()
-                            {
-                                ui.selectable_value(selected, Some(country), l10n_country(country));
-                            }
-                        } else {
-                            ui.spinner();
-                        }
-                    });
-                    if SELECTED_COUNTRY.get() != former {
-                        SELECTED_CITY.set(None);
-                    }
-                });
-            if let Some(country) = SELECTED_COUNTRY.get() {
-                egui::ComboBox::from_id_source("city")
-                    .selected_text(
-                        SELECTED_CITY
-                            .get()
-                            .unwrap_or_else(|| l10n("auto").to_string()),
-                    )
-                    .show_ui(ui, |ui| {
-                        if let Some(locations) = locations {
-                            SELECTED_CITY.modify(|selected| {
-                                ui.selectable_value(selected, None, l10n("auto"));
-                                for city in locations
-                                    .all_exits
-                                    .iter()
-                                    .filter(|s| s.1.country == country)
-                                    .map(|s| &s.1.city)
-                                    .unique()
-                                {
-                                    ui.selectable_value(
-                                        selected,
-                                        Some(city.to_string()),
-                                        city.to_string(),
-                                    );
-                                }
-                            })
-                        } else {
-                            ui.spinner();
-                        }
-                    });
-            }
-        });
-    });
-
-    // SOCKS5_PORT.modify(|socks5_port| {
-    //     ui.columns(2, |columns| {
-    //         columns[0].label(l10n("socks5_port"));
-    //         columns[1].add(egui::DragValue::new(socks5_port));
-    //     });
-    // });
-
-    // HTTP_PROXY_PORT.modify(|http_proxy_port| {
-    //     ui.horizontal(|ui| {
-    //         ui.label(l10n("http_proxy_port"));
-    //         ui.add(egui::DragValue::new(http_proxy_port));
-    //     })
-    // });
+    ui.add(widgets::SettingsLine::new(
+        ICON_PLACE.to_string(),
+        l10n("exit_location").to_string(),
+        Box::new(|ui: &mut egui::Ui| render_location_settings(ui)),
+    ));
 
     Ok(())
 }
 
-pub fn render_language_settings(ui: &mut egui::Ui) -> anyhow::Result<()> {
-    LANG_CODE.modify(|lang_code| {
-        egui::ComboBox::from_id_source("lcmbx")
-            .selected_text(match lang_code.as_str() {
-                "en" => "English",
-                "zh" => "中文",
-                "fa" => "Fārsī",
-                "ru" => "Русский",
-                _ => lang_code,
-            })
-            .show_ui(ui, |ui| {
-                ui.selectable_value(lang_code, "en".into(), "English");
-                ui.selectable_value(lang_code, "zh".into(), "中文");
-                ui.selectable_value(lang_code, "fa".into(), "Fārsī");
-                ui.selectable_value(lang_code, "ru".into(), "Русский");
-            });
+pub fn render_language_settings(ui: &mut egui::Ui) -> egui::Response {
+    let options = vec![
+        ("en".to_string(), "English".to_string()),
+        ("zh".to_string(), "中文".to_string()),
+        ("fa".to_string(), "Fārsī".to_string()),
+        ("ru".to_string(), "Русский".to_string()),
+    ];
+    let lang_code = LANG_CODE.get();
+
+    let mut language = options
+        .iter()
+        .find(|(code, _)| code == lang_code)
+        .map(|(_, name)| name.as_str())
+        .unwrap_or(&lang_code)
+        .to_string();
+
+    let response = ui.add(widgets::Dropdown::new(
+        "language_dropdown",
+        options.iter().map(|(_, name)| name.clone()).collect(),
+        &mut language,
+    ));
+
+    if response.changed() {
+        if let Some(lang_code) = options
+            .iter()
+            .find(|(_, name)| name == &language)
+            .map(|(code, _)| code)
+        {
+            LANG_CODE.set(lang_code.into());
+        }
+    }
+
+    response
+}
+
+pub fn render_location_settings(ui: &mut egui::Ui) -> egui::Response {
+    let mut location_list = LOCATION_LIST.lock();
+    let locations = location_list.get_or_refresh(Duration::from_secs(10), || {
+        smolscale::block_on(async {
+            let rpc_transport = get_config().unwrap().broker.unwrap().rpc_transport();
+            let client = BrokerClient::from(rpc_transport);
+            loop {
+                let fallible = async {
+                    let exits = client.get_exits().await?.map_err(|e| anyhow::anyhow!(e))?;
+                    let mut inner = exits.inner;
+                    inner
+                        .all_exits
+                        .sort_unstable_by_key(|s| (s.1.country, s.1.city.clone()));
+                    anyhow::Ok(inner)
+                };
+                match fallible.await {
+                    Ok(v) => return v,
+                    Err(err) => tracing::warn!("Failed to get country list: {}", err),
+                }
+            }
+        })
     });
-    Ok(())
+
+    let country_options = get_country_options(locations);
+    let selected_country = SELECTED_COUNTRY.get();
+    let city_options = get_city_options(locations, selected_country);
+
+    ui.vertical(|ui| {
+        let country_response = ui
+            .with_layout(
+                egui::Layout::right_to_left(egui::Align::RIGHT),
+                |ui: &mut egui::Ui| {
+                    let mut current_country = selected_country
+                        .map(|c| l10n_country(c).to_string())
+                        .unwrap_or_else(|| l10n("auto").to_string());
+
+                    let country_response = ui.add(widgets::Dropdown::new(
+                        "country_dropdown",
+                        country_options
+                            .iter()
+                            .map(|(_, name)| name.clone())
+                            .collect(),
+                        &mut current_country,
+                    ));
+
+                    if country_response.changed() {
+                        let new_country = if current_country == l10n("auto") {
+                            None
+                        } else {
+                            country_options
+                                .iter()
+                                .find(|(_, name)| name == &current_country)
+                                .and_then(|(code, _)| CountryCode::for_alpha2(code).ok())
+                        };
+                        SELECTED_COUNTRY.set(new_country);
+                        SELECTED_CITY.set(None);
+                    }
+
+                    country_response
+                },
+            )
+            .inner;
+
+        let city_response = if selected_country.is_some() {
+            Some(
+                ui.with_layout(
+                    egui::Layout::right_to_left(egui::Align::RIGHT),
+                    |ui: &mut egui::Ui| {
+                        let mut current_city = SELECTED_CITY
+                            .get()
+                            .unwrap_or_else(|| l10n("auto").to_string());
+
+                        let response = ui.add(widgets::Dropdown::new(
+                            "city_dropdown",
+                            city_options.iter().map(|(_, name)| name.clone()).collect(),
+                            &mut current_city,
+                        ));
+
+                        if response.changed() {
+                            let new_city = if current_city == l10n("auto") {
+                                None
+                            } else {
+                                Some(current_city)
+                            };
+                            SELECTED_CITY.set(new_city);
+                        }
+
+                        response
+                    },
+                )
+                .inner,
+            )
+        } else {
+            None
+        };
+
+        city_response.map_or(country_response.clone(), |city_resp| {
+            country_response | city_resp
+        })
+    })
+    .inner
+}
+
+fn get_country_options(locations: Option<&ExitList>) -> Vec<(String, String)> {
+    let mut options = vec![("auto".to_string(), l10n("auto").to_string())];
+    if let Some(locations) = locations {
+        options.extend(
+            locations
+                .all_exits
+                .iter()
+                .map(|s| s.1.country)
+                .unique()
+                .map(|country| {
+                    (
+                        country.alpha2().to_string(),
+                        l10n_country(country).to_string(),
+                    )
+                }),
+        );
+    }
+    options
+}
+
+fn get_city_options(
+    locations: Option<&ExitList>,
+    country: Option<CountryCode>,
+) -> Vec<(String, String)> {
+    let mut options = vec![("auto".to_string(), l10n("auto").to_string())];
+    if let Some(locations) = locations {
+        if let Some(country) = country {
+            options.extend(
+                locations
+                    .all_exits
+                    .iter()
+                    .filter(|s| s.1.country == country)
+                    .map(|s| &s.1.city)
+                    .unique()
+                    .map(|city| (city.to_string(), city.to_string())),
+            );
+        }
+    }
+    options
 }
 
 // pub fn render_broker_settings(ui: &mut egui::Ui) -> anyhow::Result<()> {
