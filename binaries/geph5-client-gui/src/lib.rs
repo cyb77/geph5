@@ -4,6 +4,10 @@ use std::time::Duration;
 
 use daemon::{DAEMON_HANDLE, TOTAL_BYTES_TIMESERIES};
 use egui::{FontData, FontDefinitions, FontFamily, Visuals};
+
+#[cfg(target_os = "android")]
+use egui_winit::winit::platform::android::activity::AndroidApp;
+
 use l10n::l10n;
 
 use once_cell::sync::OnceCell;
@@ -21,6 +25,9 @@ pub mod store_cell;
 pub mod tabs;
 pub mod timeseries;
 
+#[cfg(target_os = "android")]
+mod mobile_keyboard;
+
 pub static SHOW_KEYBOARD_CALLBACK: OnceCell<Box<dyn Fn(bool) + Send + Sync + 'static>> =
     OnceCell::new();
 
@@ -28,6 +35,44 @@ pub(crate) fn show_keyboard(show: bool) {
     if let Some(callback) = SHOW_KEYBOARD_CALLBACK.get() {
         callback(show);
     }
+}
+
+#[cfg(target_os = "android")]
+#[no_mangle]
+fn android_main(app: AndroidApp) {
+    use egui_winit::winit::platform::android::EventLoopBuilderExtAndroid;
+    // android_logger::init_once(
+    //     android_logger::Config::default()
+    //         .with_max_level(log::LevelFilter::Trace) // Default comes from `log::max_level`, i.e. Off
+    //         .with_filter(
+    //             android_logger::FilterBuilder::new()
+    //                 .filter_level(log::LevelFilter::Debug)
+    //                 .filter_module("geph5", log::LevelFilter::Trace)
+    //                 //.filter_module("winit", log::LevelFilter::Trace)
+    //                 .build(),
+    //         ),
+    // );
+    // let mut cell = None;
+    {
+        let app = app.clone();
+        crate::SHOW_KEYBOARD_CALLBACK
+            .set(Box::new(move |s| {
+                crate::mobile_keyboard::show_hide_keyboard_infal(app.clone(), s)
+            }))
+            .ok()
+            .unwrap();
+    }
+    eframe::run_native(
+        "Geph 5",
+        eframe::NativeOptions {
+            event_loop_builder: Some(Box::new(|builder| {
+                builder.with_android_app(app);
+            })),
+            ..Default::default()
+        },
+        Box::new(|cc| Ok(Box::new(App::new(cc)))),
+    )
+    .unwrap();
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -47,10 +92,16 @@ pub struct App {
     settings: Settings,
 }
 
+impl eframe::App for App {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.render(ctx);
+    }
+}
+
 impl App {
     /// Constructs the app.
-    pub fn new(ctx: &egui::Context) -> Self {
-        egui_extras::install_image_loaders(ctx);
+    pub fn new(ctx: &eframe::CreationContext) -> Self {
+        egui_extras::install_image_loaders(&ctx.egui_ctx);
         // set up fonts. currently this uses SC for CJK, but this can be autodetected instead.
         let mut fonts = FontDefinitions::default();
         fonts.font_data.insert(
@@ -68,8 +119,8 @@ impl App {
             fonts.insert(0, "normal".into());
         }
 
-        ctx.set_fonts(fonts);
-        ctx.style_mut(|style| {
+        ctx.egui_ctx.set_fonts(fonts);
+        ctx.egui_ctx.style_mut(|style| {
             style.spacing.item_spacing = egui::vec2(8.0, 8.0);
 
             style.visuals = Visuals::light();
