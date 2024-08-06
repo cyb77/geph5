@@ -7,6 +7,7 @@ use egui::{FontData, FontDefinitions, FontFamily, Visuals};
 use egui_material_icons::{
     self,
     icons::{ICON_DASHBOARD, ICON_DESCRIPTION, ICON_SETTINGS},
+    FONT_DATA,
 };
 use l10n::l10n;
 use refresh_cell::RefreshCell;
@@ -47,6 +48,16 @@ impl App {
 
         // set up fonts. currently this uses SC for CJK, but this can be autodetected instead.
         let mut fonts = FontDefinitions::default();
+        let material_icon_data = FontData::from_static(FONT_DATA);
+        fonts
+            .font_data
+            .insert("material-icons".to_string(), material_icon_data);
+        fonts
+            .families
+            .get_mut(&FontFamily::Proportional)
+            .unwrap()
+            .push("material-icons".to_string());
+
         fonts.font_data.insert(
             "normal".into(),
             FontData::from_static(include_bytes!("assets/normal.otf")),
@@ -65,13 +76,11 @@ impl App {
 
         ctx.set_fonts(fonts);
         ctx.style_mut(|style| {
-            style.spacing.item_spacing = egui::vec2(8.0, 8.0);
+            style.spacing.item_spacing = egui::vec2(16.0, 24.0);
 
             style.visuals = Visuals::light();
             // style.visuals.override_text_color = Some(egui::Color32::BLACK);
         });
-
-        egui_material_icons::initialize(ctx);
 
         Self {
             total_bytes: RefreshCell::new(),
