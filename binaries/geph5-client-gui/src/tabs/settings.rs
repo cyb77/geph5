@@ -21,26 +21,32 @@ pub static LOCATION_LIST: Lazy<Mutex<RefreshCell<ExitList>>> =
     Lazy::new(|| Mutex::new(RefreshCell::new()));
 
 pub fn render_settings(_ctx: &egui::Context, ui: &mut egui::Ui) -> anyhow::Result<()> {
-    ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-        if ui
-            .add(widgets::Button::warning(
-                l10n("logout").to_owned(),
-                widgets::ButtonSize::Large,
-            ))
-            .clicked()
-        {
-            DAEMON_HANDLE.stop()?;
-            USERNAME.set("".into());
-            PASSWORD.set("".into());
-        }
-        anyhow::Ok(())
-    });
+    ui.weak(l10n("account_info"));
+    ui.add(widgets::SettingsLine::new(
+        ICON_ACCOUNT_CIRCLE.to_string(),
+        USERNAME.get(),
+        Box::new(|ui: &mut egui::Ui| {
+            let response = ui.add(
+                widgets::Button::warning(l10n("logout").to_owned(), widgets::ButtonSize::Large)
+                    .invert(true),
+            );
+
+            if response.clicked() {
+                DAEMON_HANDLE.stop().unwrap();
+                USERNAME.set("".into());
+                PASSWORD.set("".into());
+            }
+
+            response
+        }),
+    ));
 
     // Preferences
     ui.separator();
 
+    ui.weak(l10n("general"));
     ui.add(widgets::SettingsLine::new(
-        ICON_LANGUAGE.to_string(),
+        ICON_TRANSLATE.to_string(),
         l10n("language").to_string(),
         Box::new(|ui: &mut egui::Ui| render_language_settings(ui)),
     ));
@@ -48,6 +54,7 @@ pub fn render_settings(_ctx: &egui::Context, ui: &mut egui::Ui) -> anyhow::Resul
     // Network settings
     ui.separator();
 
+    ui.weak(l10n("network_settings"));
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     VPN_MODE.modify(|vpn_mode| {
         ui.add(widgets::SettingsLine::new(
@@ -298,11 +305,11 @@ fn get_city_options(
 //                             ("".into(), "".into())
 //                         };
 //                     ui.horizontal(|ui| {
-//                         ui.label(l10n("broker_fronted_front"));
+//                         ui.weak(l10n("broker_fronted_front"));
 //                         ui.text_edit_singleline(&mut front);
 //                     });
 //                     ui.horizontal(|ui| {
-//                         ui.label(l10n("broker_fronted_host"));
+//                         ui.weak(l10n("broker_fronted_host"));
 //                         ui.text_edit_singleline(&mut host);
 //                     });
 //                     *custom_broker = Some(BrokerSource::Fronted { front, host });

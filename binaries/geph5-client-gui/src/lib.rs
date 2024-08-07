@@ -141,18 +141,27 @@ impl App {
                     ICON_SETTINGS.to_owned(),
                 ),
             ],
+            70.0,
         )
         .show(ctx, &mut self.selected_tab);
 
-        let result = egui::CentralPanel::default().show(ctx, |ui| match self.selected_tab {
-            TabName::Dashboard => self.dashboard.render(ui),
-            TabName::Logs => self.logs.render(ui),
-            TabName::Settings => {
-                egui::ScrollArea::vertical()
-                    .show(ui, |ui| render_settings(ctx, ui))
-                    .inner
-            }
-        });
+        let frame = egui::Frame {
+            inner_margin: egui::Margin::same(16.0),
+            fill: ctx.style().visuals.panel_fill,
+            ..Default::default()
+        };
+        let result =
+            egui::CentralPanel::default()
+                .frame(frame)
+                .show(ctx, |ui| match self.selected_tab {
+                    TabName::Dashboard => self.dashboard.render(ui),
+                    TabName::Logs => self.logs.render(ui),
+                    TabName::Settings => {
+                        egui::ScrollArea::vertical()
+                            .show(ui, |ui| render_settings(ctx, ui))
+                            .inner
+                    }
+                });
 
         #[cfg(not(target_os = "android"))]
         if let Err(err) = result.inner {

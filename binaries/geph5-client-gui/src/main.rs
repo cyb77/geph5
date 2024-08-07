@@ -10,8 +10,6 @@ use geph5_client_gui::pac::unset_http_proxy;
 
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt, EnvFilter};
 
-// 0123456789
-
 #[cfg(not(target_os = "android"))]
 fn main() {
     let ((_, _), _) = binary_search::binary_search((1, ()), (65536, ()), |lim| {
@@ -62,8 +60,8 @@ fn main() {
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([400.0, 600.0])
-            .with_min_inner_size([400.0, 600.0])
+            .with_inner_size([550.0, 700.0])
+            .with_min_inner_size([550.0, 700.0])
             .with_icon(IconData {
                 rgba: icon_rgba,
                 width: icon_width,
@@ -73,7 +71,7 @@ fn main() {
     };
 
     let mut cell = None;
-    eframe::run_simple_native(l10n("geph"), native_options, move |ctx, frame| {
+    eframe::run_simple_native(l10n("geph"), native_options, move |ctx, _frame| {
         let app = cell.get_or_insert_with(|| geph5_client_gui::App::new(ctx));
         app.render(ctx)
     })

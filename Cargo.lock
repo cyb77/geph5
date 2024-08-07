@@ -7960,7 +7960,7 @@ checksum = "7219d36b6eac893fa81e84ebe06485e7dcbb616177469b142df14f1f4deb1311"
 [[package]]
 name = "widgets"
 version = "0.1.0"
-source = "git+https://github.com/mel-project/egui-widgets#917ca99772d5c81df66936cc7301f63f371634d9"
+source = "git+https://github.com/mel-project/egui-widgets#0019e47af0d1ff653ed7ec3fa00c73af9241819b"
 dependencies = [
  "eframe",
  "egui",
