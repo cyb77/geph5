@@ -111,3 +111,26 @@ pub async fn query_bridges(key: &str) -> anyhow::Result<Vec<BridgeDescriptor>> {
         .collect())
     }).await.map_err(|e| anyhow::anyhow!(e))
 }
+
+pub async fn get_pow_nonce() -> anyhow::Result<String> {
+    let nonce = hex::encode(rand::thread_rng().gen::<[u8; 16]>());
+    sqlx::query("INSERT INTO pow_nonces (nonce) VALUES ($1) ON CONFLICT (nonce) DO NOTHING")
+        .execute(&*POSTGRES)
+        .await?;
+    Ok(nonce)
+}
+
+pub async fn consume_pow_nonce(nonce: String) -> anyhow::Result<()> {
+    // Try to delete the nonce from the database. If no rows are affected, the nonce does not exist.
+    let res = sqlx::query("DELETE FROM pow_nonces WHERE nonce = $1")
+        .bind(nonce)
+        .execute(POSTGRES.deref())
+        .await?;
+
+    // If no rows were affected, the nonce was not found
+    if res.rows_affected() == 0 {
+        return Err(anyhow::anyhow!("nonce not found or already consumed"));
+    }
+
+    Ok(())
+}

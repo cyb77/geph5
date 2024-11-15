@@ -1,3 +1,4 @@
+use anyhow::Context;
 use async_trait::async_trait;
 use bytes::Bytes;
 use cadence::prelude::*;
@@ -6,14 +7,15 @@ use ed25519_dalek::VerifyingKey;
 use futures_util::{future::join_all, TryFutureExt};
 use geph5_broker_protocol::{
     AccountLevel, AuthError, BridgeDescriptor, BrokerProtocol, BrokerService, Credential,
-    ExitDescriptor, ExitList, GenericError, Mac, RouteDescriptor, Signed, UserInfo,
-    DOMAIN_EXIT_DESCRIPTOR,
+    ExitDescriptor, ExitList, GenericError, Mac, PowParams, RegisterReq, RouteDescriptor, Signed,
+    UserInfo, DOMAIN_EXIT_DESCRIPTOR,
 };
 use isocountry::CountryCode;
 use mizaru2::{BlindedClientToken, BlindedSignature, ClientToken, UnblindedSignature};
 use moka::future::Cache;
 use nanorpc::{RpcService, ServerError};
 use once_cell::sync::Lazy;
+use rand::Rng as _;
 use std::{
     net::SocketAddr,
     ops::Deref,
@@ -102,8 +104,23 @@ fn is_plus_exit(exit: &ExitDescriptor) -> bool {
     )
 }
 
+const MIN_DIFFICULTY: u64 = 16;
+
 #[async_trait]
 impl BrokerProtocol for BrokerImpl {
+    async fn get_pow_params(&self) -> Result<PowParams, GenericError> {
+        Ok(PowParams {
+            difficulty: MIN_DIFFICULTY,
+            nonce: hex::encode(rand::thread_rng().gen::<[u8; 16]>()),
+        })
+    }
+
+    async fn register_user(&self, req: RegisterReq) -> Result<Credential, GenericError> {
+        let proof =
+            melpow::Proof::from_bytes(&req.pow_proof).context("invalid melpow proof format")?;
+        todo!()
+    }
+
     async fn get_mizaru_subkey(&self, level: AccountLevel, epoch: u16) -> Bytes {
         match level {
             AccountLevel::Free => &FREE_MIZARU_SK,
@@ -123,6 +140,7 @@ impl BrokerProtocol for BrokerImpl {
             Credential::LegacyUsernamePassword { username, password } => {
                 validate_username_pwd(&username, &password).await?
             }
+            Credential::Bearer(_) => return Err(AuthError::Forbidden),
         };
 
         let token = new_auth_token(user_id)

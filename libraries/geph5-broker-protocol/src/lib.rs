@@ -21,6 +21,8 @@ use thiserror::Error;
 #[nanorpc_derive]
 #[async_trait]
 pub trait BrokerProtocol {
+    async fn get_pow_params(&self) -> Result<PowParams, GenericError>;
+    async fn register_user(&self, req: RegisterReq) -> Result<Credential, GenericError>;
     async fn get_mizaru_subkey(&self, level: AccountLevel, epoch: u16) -> Bytes;
     async fn get_auth_token(&self, credential: Credential) -> Result<String, AuthError>;
     async fn get_user_info(&self, auth_token: String) -> Result<Option<UserInfo>, AuthError>;
@@ -53,6 +55,18 @@ pub trait BrokerProtocol {
     async fn set_stat(&self, stat: String, value: f64);
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PowParams {
+    pub difficulty: u64,
+    pub nonce: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RegisterReq {
+    pub pow_params: PowParams,
+    pub pow_proof: Bytes,
+}
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct UserInfo {
     pub user_id: u64,
@@ -80,6 +94,7 @@ pub enum AuthError {
 #[serde(rename_all = "snake_case")]
 pub enum Credential {
     TestDummy,
+    Bearer(String),
     LegacyUsernamePassword { username: String, password: String },
 }
 
