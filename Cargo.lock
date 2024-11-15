@@ -3065,6 +3065,7 @@ dependencies = [
  "async-io 2.3.4",
  "async-trait",
  "axum",
+ "base32 0.5.1",
  "blake3",
  "bytes",
  "cadence",

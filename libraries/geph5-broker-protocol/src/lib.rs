@@ -57,7 +57,7 @@ pub trait BrokerProtocol {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PowParams {
-    pub difficulty: u64,
+    pub difficulty: usize,
     pub nonce: String,
 }
 

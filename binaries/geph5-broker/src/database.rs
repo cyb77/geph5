@@ -1,14 +1,15 @@
 use std::{ops::Deref, str::FromStr, sync::LazyLock, time::Duration};
 
 use async_io::Timer;
-use geph5_broker_protocol::BridgeDescriptor;
+use geph5_broker_protocol::{BridgeDescriptor, Credential};
 use moka::future::Cache;
 
 use rand::Rng;
 use sqlx::{
     pool::PoolOptions,
     postgres::{PgConnectOptions, PgSslMode},
-    prelude::FromRow,
+    prelude::*,
+    types::chrono::Utc,
     PgPool,
 };
 
@@ -112,7 +113,7 @@ pub async fn query_bridges(key: &str) -> anyhow::Result<Vec<BridgeDescriptor>> {
     }).await.map_err(|e| anyhow::anyhow!(e))
 }
 
-pub async fn get_pow_nonce() -> anyhow::Result<String> {
+pub async fn new_pow_nonce() -> anyhow::Result<String> {
     let nonce = hex::encode(rand::thread_rng().gen::<[u8; 16]>());
     sqlx::query("INSERT INTO pow_nonces (nonce) VALUES ($1) ON CONFLICT (nonce) DO NOTHING")
         .execute(&*POSTGRES)
@@ -133,4 +134,26 @@ pub async fn consume_pow_nonce(nonce: String) -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+pub async fn new_user() -> anyhow::Result<Credential> {
+    let mut txn = POSTGRES.begin().await?;
+    let row = sqlx::query("insert into users (createtime) values ($1)")
+        .bind(Utc::now().naive_utc())
+        .fetch_one(&mut *txn)
+        .await?;
+    let user_id: i32 = row.get(0);
+
+    // Bearer tokens are 96-bit numbers encoded in base32
+    let token = base32::encode(base32::Alphabet::Z, &rand::thread_rng().gen::<[u8; 12]>());
+    let token_hash = blake3::hash(token.as_bytes()).to_string();
+    // we store the blake3 in the database
+    sqlx::query("insert into auth_tokens (id, bearer_hash) values ($1, $2)")
+        .bind(user_id)
+        .bind(token_hash)
+        .execute(&mut *txn)
+        .await?;
+
+    txn.commit().await?;
+    Ok(Credential::Bearer(token))
 }

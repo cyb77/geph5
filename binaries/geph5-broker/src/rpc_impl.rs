@@ -23,7 +23,11 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{auth::get_subscription_expiry, log_error};
+use crate::{
+    auth::get_subscription_expiry,
+    database::{consume_pow_nonce, new_pow_nonce, new_user},
+    log_error,
+};
 use crate::{
     auth::{new_auth_token, valid_auth_token, validate_username_pwd},
     database::{insert_exit, query_bridges, ExitRow, POSTGRES},
@@ -104,21 +108,44 @@ fn is_plus_exit(exit: &ExitDescriptor) -> bool {
     )
 }
 
-const MIN_DIFFICULTY: u64 = 16;
+const MIN_DIFFICULTY: usize = 16;
+
+struct Blake3HashFunction;
+
+impl melpow::HashFunction for Blake3HashFunction {
+    fn hash(&self, b: &[u8], k: &[u8]) -> melpow::SVec<u8> {
+        blake3::keyed_hash(blake3::hash(k).as_bytes(), b).as_bytes()[..].into()
+    }
+}
 
 #[async_trait]
 impl BrokerProtocol for BrokerImpl {
     async fn get_pow_params(&self) -> Result<PowParams, GenericError> {
+        let nonce = new_pow_nonce().await?;
         Ok(PowParams {
             difficulty: MIN_DIFFICULTY,
-            nonce: hex::encode(rand::thread_rng().gen::<[u8; 16]>()),
+            nonce,
         })
     }
 
     async fn register_user(&self, req: RegisterReq) -> Result<Credential, GenericError> {
+        // first, we attempt to consume the PoW nonce to ensure uniqueness
+        consume_pow_nonce(req.pow_params.nonce.clone()).await?;
+        // then, we verify the PoW proof
         let proof =
             melpow::Proof::from_bytes(&req.pow_proof).context("invalid melpow proof format")?;
-        todo!()
+        if req.pow_params.difficulty < MIN_DIFFICULTY {
+            return Err(GenericError("difficulty is too low".into()));
+        }
+        let pow_valid = proof.verify(
+            blake3::hash(req.pow_params.nonce.as_bytes()).as_bytes(),
+            req.pow_params.difficulty,
+            Blake3HashFunction,
+        );
+        if !pow_valid {
+            return Err(GenericError("invalid PoW proof".into()));
+        }
+        Ok(new_user().await?)
     }
 
     async fn get_mizaru_subkey(&self, level: AccountLevel, epoch: u16) -> Bytes {
