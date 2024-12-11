@@ -247,21 +247,13 @@ impl BrokerProtocol for BrokerImpl {
             AccountLevel::Free
         };
 
-        // TODO filter out plus only
-
         let raw_descriptors = query_bridges(&format!("{:?}", token)).await?;
 
-        let plus_pools = [
-            "ls_ap_northeast_1",
-            "ls_ap_northeast_2",
-            "NEW_ls_ap_northeast_1",
-            "NEW_ls_ap_northeast_2",
-            "yaofan-hk",
-        ];
+        // plus bridges only for plus users
         let raw_descriptors = if account_level == AccountLevel::Free {
             raw_descriptors
                 .into_iter()
-                .filter(|s| !plus_pools.iter().any(|plus_group| &s.pool == plus_group))
+                .filter(|(_, _, is_plus)| !is_plus)
                 .collect()
         } else {
             raw_descriptors
@@ -271,7 +263,7 @@ impl BrokerProtocol for BrokerImpl {
         for route in join_all(
             raw_descriptors
                 .into_iter()
-                .map(|desc| bridge_to_leaf_route(desc, exit)),
+                .map(|(desc, delay, _is_plus)| bridge_to_leaf_route(desc, delay, exit)),
         )
         .await
         {

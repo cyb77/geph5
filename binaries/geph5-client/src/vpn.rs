@@ -95,9 +95,9 @@ pub async fn recv_vpn_packet(ctx: &AnyCtx<Config>) -> Bytes {
 
 static VPN_EVENT: CtxField<Event> = |_| Event::new();
 
-static VPN_CAPTURE: CtxField<ArrayQueue<(Bytes, Instant)>> = |_| ArrayQueue::new(1024 * 1024);
+static VPN_CAPTURE: CtxField<ArrayQueue<(Bytes, Instant)>> = |_| ArrayQueue::new(1024);
 
-static VPN_INJECT: CtxField<ArrayQueue<Bytes>> = |_| ArrayQueue::new(1024 * 1024);
+static VPN_INJECT: CtxField<ArrayQueue<Bytes>> = |_| ArrayQueue::new(1024);
 
 pub async fn vpn_loop(ctx: &AnyCtx<Config>) -> anyhow::Result<()> {
     let (send_captured, recv_captured) = smol::channel::unbounded();
